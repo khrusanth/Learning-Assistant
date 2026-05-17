@@ -1,0 +1,143 @@
+/* Modal Styles */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+  padding: 1rem;
+}
+
+.modal {
+  background-color: var(--bg-light);
+  border-radius: var(--radius-xl);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-layout.dark .modal {
+  background-color: var(--bg-dark);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid;
+  flex-shrink: 0;
+}
+
+.app-layout.light .modal-header {
+  border-bottom-color: var(--border-light);
+}
+
+.app-layout.dark .modal-header {
+  border-bottom-color: var(--border-dark);
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light-secondary);
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+
+.app-layout.dark .modal-close {
+  color: var(--text-dark-secondary);
+}
+
+.modal-close:hover {
+  background-color: var(--bg-light-secondary);
+  color: var(--text-light);
+}
+
+.app-layout.dark .modal-close:hover {
+  background-color: var(--bg-dark-secondary);
+  color: var(--text-dark);
+}
+
+.modal-body {
+  padding: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid;
+  flex-shrink: 0;
+}
+
+.app-layout.light .modal-footer {
+  border-top-color: var(--border-light);
+}
+
+.app-layout.dark .modal-footer {
+  border-top-color: var(--border-dark);
+}
+
+.modal-footer .btn {
+  min-width: 100px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .modal {
+    max-width: calc(100% - 2rem);
+    max-height: 80vh;
+  }
+
+  .modal-header {
+    padding: 1rem;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .modal-footer {
+    padding: 1rem;
+    flex-direction: column;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+  }
+}
