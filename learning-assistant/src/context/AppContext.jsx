@@ -77,17 +77,67 @@ export const AppProvider = ({ children }) => {
 
   // Initialize: load data from DB and apply theme
   useEffect(() => {
-    const topics = db.getAllTopics();
-    const stats = db.getStats();
-    dispatch({ type: ACTIONS.SET_TOPICS, payload: topics });
-    dispatch({ type: ACTIONS.SET_STATS, payload: stats });
-    dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+    let isMounted = true;
 
-    // Apply theme on mount
-    document.documentElement.setAttribute(
-      'data-theme',
-      getInitialDarkMode() ? 'dark' : 'light'
-    );
+    const initialize = async () => {
+      try {
+        let topics = db.getAllTopics();
+        if (import.meta.env.DEV && topics.length === 0) {
+          const response = await fetch('/local-roadmap.json', { cache: 'no-store' });
+          if (response.status !== 404) {
+            if (!response.ok) {
+              throw new Error(`Could not load local roadmap (${response.status})`);
+            }
+            const localTopics = await response.json();
+            if (
+              !Array.isArray(localTopics) ||
+              localTopics.some(
+                (topic) =>
+                  !topic ||
+                  typeof topic.id !== 'string' ||
+                  typeof topic.title !== 'string' ||
+                  !Array.isArray(topic.children)
+              )
+            ) {
+              throw new Error('The local roadmap file does not contain a valid topics list');
+            }
+            if (localTopics.length > 0) {
+              db.setAllTopics(localTopics);
+              topics = db.getAllTopics();
+            }
+          }
+        }
+
+        if (!isMounted) return;
+        dispatch({ type: ACTIONS.SET_TOPICS, payload: topics });
+        dispatch({ type: ACTIONS.SET_STATS, payload: db.getStats() });
+        document.documentElement.setAttribute(
+          'data-theme',
+          getInitialDarkMode() ? 'dark' : 'light'
+        );
+      } catch (error) {
+        console.error('[LearnAssist] Failed to initialize local data:', error);
+        if (isMounted) {
+          dispatch({ type: ACTIONS.SET_TOPICS, payload: db.getAllTopics() });
+          dispatch({ type: ACTIONS.SET_STATS, payload: db.getStats() });
+          dispatch({
+            type: ACTIONS.SHOW_TOAST,
+            payload: {
+              message: `Could not load local roadmap data: ${error.message}`,
+              type: 'error',
+              id: Date.now(),
+            },
+          });
+        }
+      } finally {
+        if (isMounted) dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+      }
+    };
+
+    initialize();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // ─── Convenience dispatchers ─────────────────────────────

@@ -5,8 +5,12 @@ hierarchical roadmap, search topics, mark concepts complete, and track your
 progress on the dashboard. Your topics and preferences are saved in the
 browser's local storage.
 
-The roadmap data is intentionally not bundled with this repository. On a new
-browser profile the app starts empty; import a spreadsheet to add topics.
+The generated roadmap is intentionally excluded from Git but stays in your
+local `src/data/sampleData.json` file. The local Vite development server reads
+that file when a browser profile has no saved topics, so a fresh local browser
+profile gets your roadmap automatically. If the local file is not present, the
+app starts empty and you can import a spreadsheet. Production builds do not
+bundle this private local roadmap.
 
 ## Run the application
 
@@ -107,6 +111,14 @@ are ignored.
 ## Local data
 
 Topics are stored per browser in local storage and are not synced to GitHub.
+The local roadmap JSON is ignored by Git, so committing or pulling code does
+not remove it or upload it. To recreate it from your own outline and workbooks,
+run this from the `learning-assistant` folder:
+
+```sh
+node generate-data.js <outline.txt> [expanded-roadmap.xlsx] [organized-roadmap.xlsx]
+```
+
 **Settings** provides JSON backup import/export, CSV export, theme settings,
-and a reset action. Resetting browser data does not change the files in this
-repository.
+and a reset action. Resetting browser data does not change the local roadmap
+file; restarting the development app will load it again if it is present.
