@@ -1,136 +1,192 @@
 /**
- * Topic Card Component
+ * Topic Card for the Learning Tree.
+ * Displays a root topic with its subtopics, progress bar, and actions.
  */
-import React from 'react';
-import { CheckCircle2, Circle, AlertCircle, Trash2, Edit2 } from 'lucide-react';
-import { CompletionStatus } from '../utils/businessLogic';
-import '../styles/TopicCard.css';
+import { useState } from 'react';
+import {
+  ChevronDown,
+  Plus,
+  Trash2,
+  Edit3,
+  CheckCircle2,
+  Circle,
+} from 'lucide-react';
+
+const StatusIcon = ({ status, size = 18 }) => {
+  const isComplete = status === 'Completed' || status === 'Mastered';
+  return isComplete ? (
+    <CheckCircle2 size={size} className="icon-completed" />
+  ) : (
+    <Circle size={size} className="icon-pending" />
+  );
+};
+
+const SubtopicRow = ({ topic, allTopics, onEdit, onDelete, onStatusChange }) => {
+  const children = allTopics.filter((child) => child.parent === topic.id);
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="subtopic-node">
+      <div className="subtopic-row">
+        {children.length > 0 && (
+          <button
+            className="subtopic-expand-btn"
+            onClick={() => setExpanded(!expanded)}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${topic.title}`}
+            aria-expanded={expanded}
+          >
+            <ChevronDown
+              size={15}
+              className={`toggle-chevron ${expanded ? 'expanded' : ''}`}
+            />
+          </button>
+        )}
+        {children.length === 0 && <span className="subtopic-expand-placeholder" />}
+        <button
+          className="topic-status-btn"
+          onClick={() =>
+            onStatusChange(
+              topic.id,
+              topic.status === 'Completed' ? 'Not Started' : 'Completed'
+            )
+          }
+          aria-label={`Toggle ${topic.title} completion`}
+        >
+          <StatusIcon status={topic.status} size={16} />
+        </button>
+        <div className="subtopic-info">
+          <div className="subtopic-title">{topic.title}</div>
+          {topic.description && <div className="subtopic-desc">{topic.description}</div>}
+        </div>
+        <div className="subtopic-actions">
+          <button className="btn-icon" onClick={() => onEdit(topic)} aria-label="Edit">
+            <Edit3 size={14} />
+          </button>
+          <button className="btn-icon danger" onClick={() => onDelete(topic.id)} aria-label="Delete">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+      {expanded && children.length > 0 && (
+        <div className="nested-subtopics-list">
+          {children.map((child) => (
+            <SubtopicRow
+              key={child.id}
+              topic={child}
+              allTopics={allTopics}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onStatusChange={onStatusChange}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const TopicCard = ({
   topic,
+  allTopics,
   onEdit,
   onDelete,
+  onAddChild,
   onStatusChange,
-  onClick,
-  compact = false,
 }) => {
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case CompletionStatus.COMPLETED:
-      case CompletionStatus.MASTERED:
-        return <CheckCircle2 size={20} className="text-success" />;
-      case CompletionStatus.IN_PROGRESS:
-        return <AlertCircle size={20} className="text-warning" />;
-      default:
-        return <Circle size={20} className="text-muted" />;
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case CompletionStatus.COMPLETED:
-        return 'success';
-      case CompletionStatus.MASTERED:
-        return 'primary';
-      case CompletionStatus.IN_PROGRESS:
-        return 'warning';
-      case CompletionStatus.NEEDS_REVISION:
-        return 'danger';
-      default:
-        return 'primary';
-    }
-  };
-
-  if (compact) {
-    return (
-      <div className="topic-card-compact" onClick={onClick}>
-        <div className="compact-header">
-          <span className="compact-title">{topic.title}</span>
-          <span className="compact-progress">{topic.progress}%</span>
-        </div>
-        <div className="compact-progress-bar">
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${topic.progress}%` }}></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const [expanded, setExpanded] = useState(true);
+  const children = allTopics.filter((t) => t.parent === topic.id);
+  const hasChildren = children.length > 0;
+  const completedCount = children.filter(
+    (c) => c.status === 'Completed' || c.status === 'Mastered'
+  ).length;
+  const progressPct = hasChildren
+    ? Math.round((completedCount / children.length) * 100)
+    : 0;
 
   return (
-    <div className="topic-card" onClick={onClick}>
-      <div className="card-header">
-        <div className="header-content">
-          {getStatusIcon(topic.status)}
-          <div>
-            <h3 className="card-title">{topic.title}</h3>
-            {topic.description && (
-              <p className="card-description">{topic.description}</p>
-            )}
+    <div className="topic-card">
+      {/* Header */}
+      <div className="topic-card-header">
+        <div className="topic-header-left">
+          <button
+            className="topic-status-btn"
+            onClick={() =>
+              onStatusChange(
+                topic.id,
+                topic.status === 'Completed' ? 'Not Started' : 'Completed'
+              )
+            }
+            aria-label={`Toggle ${topic.title} completion`}
+          >
+            <StatusIcon status={topic.status} size={20} />
+          </button>
+          <div className="topic-info">
+            <h3 className="topic-title">{topic.title}</h3>
+            {topic.description && <p className="topic-desc">{topic.description}</p>}
           </div>
         </div>
-        <div className="card-actions">
-          <button
-            className="btn-icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(topic);
-            }}
-            aria-label="Edit topic"
-          >
-            <Edit2 size={18} />
+        <div className="topic-actions">
+          <button className="btn-icon" onClick={() => onEdit(topic)} aria-label="Edit topic">
+            <Edit3 size={16} />
           </button>
-          <button
-            className="btn-icon danger"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(topic.id);
-            }}
-            aria-label="Delete topic"
-          >
-            <Trash2 size={18} />
+          <button className="btn-icon danger" onClick={() => onDelete(topic.id)} aria-label="Delete topic">
+            <Trash2 size={16} />
           </button>
         </div>
       </div>
 
-      <div className="card-body">
-        <div className="status-badge">
-          <span className={`badge badge-${getStatusColor(topic.status)}`}>
-            {topic.status}
-          </span>
-        </div>
-
-        <div className="progress-section">
-          <div className="progress-header">
+      {/* Progress */}
+      {hasChildren && (
+        <div className="topic-progress-section">
+          <div className="topic-progress-info">
             <span>Progress</span>
-            <span className="progress-value">{topic.progress}%</span>
+            <span>{completedCount} / {children.length} completed</span>
           </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${topic.progress}%` }}></div>
+          <div className="progress-track">
+            <div
+              className={`progress-fill ${progressPct === 100 ? 'success' : ''}`}
+              style={{ width: `${progressPct}%` }}
+            />
           </div>
         </div>
+      )}
 
-        {topic.confidence > 0 && (
-          <div className="confidence-section">
-            <span>Confidence: {topic.confidence}%</span>
-          </div>
-        )}
+      {/* Subtopics */}
+      {hasChildren && (
+        <div className="subtopics-section">
+          <button
+            className="subtopics-toggle"
+            onClick={() => setExpanded(!expanded)}
+          >
+            <ChevronDown
+              size={16}
+              className={`toggle-chevron ${expanded ? 'expanded' : ''}`}
+            />
+            <span>Subtopics ({children.length})</span>
+          </button>
+          {expanded && (
+            <div className="subtopics-list">
+              {children.map((child) => (
+                <SubtopicRow
+                  key={child.id}
+                  topic={child}
+                  allTopics={allTopics}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onStatusChange={onStatusChange}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-        {topic.tags && topic.tags.length > 0 && (
-          <div className="tags-section">
-            {topic.tags.map((tag, idx) => (
-              <span key={idx} className="badge badge-primary">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {topic.resources && topic.resources.length > 0 && (
-          <div className="resources-count">
-            📎 {topic.resources.length} resource(s)
-          </div>
-        )}
+      {/* Footer */}
+      <div className="topic-card-footer">
+        <button className="btn-add-subtopic" onClick={() => onAddChild(topic)}>
+          <Plus size={14} />
+          Add Subtopic
+        </button>
       </div>
     </div>
   );

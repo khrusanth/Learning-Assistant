@@ -1,146 +1,171 @@
 /**
- * Global App Context for state management
+ * Application Context & State Management
+ * Single source of truth — backed by the JSON DB service.
  */
-import React, { createContext, useReducer, useCallback, useEffect } from 'react';
+import { createContext, useReducer, useContext, useCallback, useEffect } from 'react';
+import * as db from '../services/db';
 
-export const AppContext = createContext();
+// ─── Actions ───────────────────────────────────────────────────
+const ACTIONS = {
+  SET_TOPICS: 'SET_TOPICS',
+  SET_STATS: 'SET_STATS',
+  SET_DARK_MODE: 'SET_DARK_MODE',
+  SET_CURRENT_PAGE: 'SET_CURRENT_PAGE',
+  SET_SEARCH: 'SET_SEARCH',
+  SHOW_TOAST: 'SHOW_TOAST',
+  HIDE_TOAST: 'HIDE_TOAST',
+  SHOW_CONFIRM: 'SHOW_CONFIRM',
+  HIDE_CONFIRM: 'HIDE_CONFIRM',
+  SET_LOADING: 'SET_LOADING',
+};
+
+// ─── Initial State ─────────────────────────────────────────────
+const getInitialDarkMode = () => {
+  const stored = localStorage.getItem('la-dark-mode');
+  if (stored !== null) return stored === 'true';
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+};
 
 const initialState = {
   topics: [],
-  progress: {},
-  achievements: [],
-  revisions: [],
-  stats: {
-    totalXP: 0,
-    level: 1,
-    streak: 0,
-    totalCompleted: 0,
-    lastActivityDate: null,
-  },
-  isLoading: false,
-  error: null,
-  darkMode: localStorage.getItem('darkMode') === 'true',
-  folderSelected: false,
+  stats: db.getStats(),
+  darkMode: getInitialDarkMode(),
+  currentPage: 'dashboard',
+  searchQuery: '',
+  toast: null,
+  confirmDialog: null,
+  isLoading: true,
 };
 
-const actions = {
-  SET_TOPICS: 'SET_TOPICS',
-  ADD_TOPIC: 'ADD_TOPIC',
-  UPDATE_TOPIC: 'UPDATE_TOPIC',
-  DELETE_TOPIC: 'DELETE_TOPIC',
-  SET_PROGRESS: 'SET_PROGRESS',
-  SET_ACHIEVEMENTS: 'SET_ACHIEVEMENTS',
-  SET_REVISIONS: 'SET_REVISIONS',
-  SET_STATS: 'SET_STATS',
-  SET_LOADING: 'SET_LOADING',
-  SET_ERROR: 'SET_ERROR',
-  TOGGLE_DARK_MODE: 'TOGGLE_DARK_MODE',
-  SET_FOLDER_SELECTED: 'SET_FOLDER_SELECTED',
-  RESET_STATE: 'RESET_STATE',
-};
-
+// ─── Reducer ───────────────────────────────────────────────────
 const reducer = (state, action) => {
   switch (action.type) {
-    case actions.SET_TOPICS:
+    case ACTIONS.SET_TOPICS:
       return { ...state, topics: action.payload };
-    case actions.ADD_TOPIC:
-      return { ...state, topics: [...state.topics, action.payload] };
-    case actions.UPDATE_TOPIC:
-      return {
-        ...state,
-        topics: state.topics.map((t) =>
-          t.id === action.payload.id ? action.payload : t
-        ),
-      };
-    case actions.DELETE_TOPIC:
-      return {
-        ...state,
-        topics: state.topics.filter((t) => t.id !== action.payload),
-      };
-    case actions.SET_PROGRESS:
-      return { ...state, progress: action.payload };
-    case actions.SET_ACHIEVEMENTS:
-      return { ...state, achievements: action.payload };
-    case actions.SET_REVISIONS:
-      return { ...state, revisions: action.payload };
-    case actions.SET_STATS:
+    case ACTIONS.SET_STATS:
       return { ...state, stats: action.payload };
-    case actions.SET_LOADING:
+    case ACTIONS.SET_DARK_MODE: {
+      const dark = action.payload;
+      localStorage.setItem('la-dark-mode', dark);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      return { ...state, darkMode: dark };
+    }
+    case ACTIONS.SET_CURRENT_PAGE:
+      return { ...state, currentPage: action.payload };
+    case ACTIONS.SET_SEARCH:
+      return { ...state, searchQuery: action.payload };
+    case ACTIONS.SHOW_TOAST:
+      return { ...state, toast: action.payload };
+    case ACTIONS.HIDE_TOAST:
+      return { ...state, toast: null };
+    case ACTIONS.SHOW_CONFIRM:
+      return { ...state, confirmDialog: action.payload };
+    case ACTIONS.HIDE_CONFIRM:
+      return { ...state, confirmDialog: null };
+    case ACTIONS.SET_LOADING:
       return { ...state, isLoading: action.payload };
-    case actions.SET_ERROR:
-      return { ...state, error: action.payload };
-    case actions.TOGGLE_DARK_MODE:
-      const newDarkMode = !state.darkMode;
-      localStorage.setItem('darkMode', newDarkMode);
-      document.documentElement.classList.toggle('dark', newDarkMode);
-      return { ...state, darkMode: newDarkMode };
-    case actions.SET_FOLDER_SELECTED:
-      return { ...state, folderSelected: action.payload };
-    case actions.RESET_STATE:
-      return initialState;
     default:
       return state;
   }
 };
 
+// ─── Context ───────────────────────────────────────────────────
+const AppContext = createContext(null);
+
 export const AppProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Load data on mount (simplified, no file access yet)
+  // Initialize: load data from DB and apply theme
   useEffect(() => {
-    const loadData = async () => {
-      dispatch({ type: actions.SET_LOADING, payload: true });
-      try {
-        // Initialize from localStorage if available
-        const savedTopics = localStorage.getItem('topics');
-        const savedStats = localStorage.getItem('stats');
-        
-        if (savedTopics) {
-          dispatch({ type: actions.SET_TOPICS, payload: JSON.parse(savedTopics) });
-        }
-        if (savedStats) {
-          dispatch({ type: actions.SET_STATS, payload: JSON.parse(savedStats) });
-        }
-        
-        console.log('App data loaded');
-      } catch (err) {
-        console.error('Error loading app data', err);
-        dispatch({ type: actions.SET_ERROR, payload: err.message });
-      } finally {
-        dispatch({ type: actions.SET_LOADING, payload: false });
-      }
-    };
+    const topics = db.getAllTopics();
+    const stats = db.getStats();
+    dispatch({ type: ACTIONS.SET_TOPICS, payload: topics });
+    dispatch({ type: ACTIONS.SET_STATS, payload: stats });
+    dispatch({ type: ACTIONS.SET_LOADING, payload: false });
 
-    loadData();
+    // Apply theme on mount
+    document.documentElement.setAttribute(
+      'data-theme',
+      getInitialDarkMode() ? 'dark' : 'light'
+    );
   }, []);
 
-  // Auto-save to localStorage
-  useEffect(() => {
-    if (state.topics.length > 0) {
-      localStorage.setItem('topics', JSON.stringify(state.topics));
-    }
-  }, [state.topics]);
+  // ─── Convenience dispatchers ─────────────────────────────
 
-  useEffect(() => {
-    if (state.stats) {
-      localStorage.setItem('stats', JSON.stringify(state.stats));
-    }
-  }, [state.stats]);
+  /** Reload topics from DB into state */
+  const refreshTopics = useCallback(() => {
+    dispatch({ type: ACTIONS.SET_TOPICS, payload: db.getAllTopics() });
+  }, []);
 
-  // Context value
+  /** Reload stats from DB into state */
+  const refreshStats = useCallback(() => {
+    dispatch({ type: ACTIONS.SET_STATS, payload: db.getStats() });
+  }, []);
+
+  /** Show a toast notification */
+  const showToast = useCallback((message, type = 'success') => {
+    dispatch({ type: ACTIONS.SHOW_TOAST, payload: { message, type, id: Date.now() } });
+  }, []);
+
+  /** Hide the current toast */
+  const hideToast = useCallback(() => {
+    dispatch({ type: ACTIONS.HIDE_TOAST });
+  }, []);
+
+  /** Show a confirmation dialog (returns a promise) */
+  const confirm = useCallback((message) => {
+    return new Promise((resolve) => {
+      dispatch({
+        type: ACTIONS.SHOW_CONFIRM,
+        payload: {
+          message,
+          onConfirm: () => {
+            dispatch({ type: ACTIONS.HIDE_CONFIRM });
+            resolve(true);
+          },
+          onCancel: () => {
+            dispatch({ type: ACTIONS.HIDE_CONFIRM });
+            resolve(false);
+          },
+        },
+      });
+    });
+  }, []);
+
+  /** Navigate to a page */
+  const navigate = useCallback((page) => {
+    dispatch({ type: ACTIONS.SET_CURRENT_PAGE, payload: page });
+  }, []);
+
+  /** Set search query */
+  const setSearch = useCallback((q) => {
+    dispatch({ type: ACTIONS.SET_SEARCH, payload: q });
+  }, []);
+
+  /** Toggle dark mode */
+  const toggleDarkMode = useCallback(() => {
+    dispatch({ type: ACTIONS.SET_DARK_MODE, payload: !state.darkMode });
+  }, [state.darkMode]);
+
   const value = {
     state,
     dispatch,
-    actions,
+    actions: ACTIONS,
+    refreshTopics,
+    refreshStats,
+    showToast,
+    hideToast,
+    confirm,
+    navigate,
+    setSearch,
+    toggleDarkMode,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export const useAppContext = () => {
-  const context = React.useContext(AppContext);
-  if (!context) {
-    throw new Error('useAppContext must be used within AppProvider');
-  }
-  return context;
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useAppContext must be used within AppProvider');
+  return ctx;
 };
